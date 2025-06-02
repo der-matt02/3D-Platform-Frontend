@@ -1,17 +1,21 @@
 // src/pages/QuotePage.tsx
+
 import React, { useState, useEffect } from "react";
 import QuoteForm from "../components/QuoteForm";
 import type { QuoteCreateSchema, QuoteUpdateSchema } from "../types/schema";
 
+interface QuotePageProps {
+  token: string;
+  onLogout: () => void;
+}
+
 const API_URL = "http://localhost:8000/api/quotes/";
 
-const QuotePage: React.FC = () => {
-  // 1) Estado para la lista de cotizaciones (de tipo `any[]` porque QuoteOutSchema no existe)
+const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
+  // 1) Estado para la lista de cotizaciones
   const [quotes, setQuotes] = useState<any[]>([]);
 
-  // 2) En vez de almacenar `QuoteUpdateSchema` con `id` incluido, 
-  //    separamos: `editingData` contiene el payload sin el id, 
-  //    `editingId` tiene la cadena del id que vamos a editar.
+  // 2) Estados para edición: payload (sin id) y el id por separado
   const [editingData, setEditingData] = useState<QuoteUpdateSchema | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -23,16 +27,21 @@ const QuotePage: React.FC = () => {
   // ——————————————————————————————————————————————————————————————————
   const fetchQuotes = async () => {
     try {
-      const res = await fetch(API_URL);
+      const res = await fetch(API_URL, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!res.ok) {
         throw new Error(`Error ${res.status}: ${res.statusText}`);
       }
       const data = await res.json();
-      // En `data` esperamos algo como: [{ _id: "...", quote_name: "...", printer: {...}, ... }, ...]
-      // Ajustamos para que cada item tenga `id = _id` para facilitar
+      // Ajustamos para que cada item tenga `id = _id`
       const adjusted = data.map((item: any) => ({
         ...item,
-        id: item._id, // asumimos que el backend devuelve `_id`
+        id: item._id,
       }));
       setQuotes(adjusted);
     } catch (err) {
@@ -44,6 +53,7 @@ const QuotePage: React.FC = () => {
   // 4) Al montar, cargamos la lista
   useEffect(() => {
     fetchQuotes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ——————————————————————————————————————————————————————————————————
@@ -53,7 +63,10 @@ const QuotePage: React.FC = () => {
     try {
       const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -80,7 +93,10 @@ const QuotePage: React.FC = () => {
     try {
       const res = await fetch(`${API_URL}${editingId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -106,6 +122,10 @@ const QuotePage: React.FC = () => {
     try {
       const res = await fetch(`${API_URL}${id}`, {
         method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       });
       if (!res.ok) {
         const textErr = await res.text();
@@ -129,7 +149,6 @@ const QuotePage: React.FC = () => {
 
   // ——————————————————————————————————————————————————————————————————
   // handleEditClick: al hacer clic en “Editar” para una cotización `q`
-  //   aquí extraemos su id (`_id`) y los datos que van a `QuoteUpdateSchema`.
   // ——————————————————————————————————————————————————————————————————
   const handleEditClick = (q: any) => {
     // q tiene al menos: q._id, q.quote_name, q.printer, q.filament, q.energy, q.model, q.commercial
@@ -180,10 +199,33 @@ const QuotePage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-      <h1>Cotizaciones 3D</h1>
+      {/* Cabecera con título y botón “Cerrar sesión” */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+        }}
+      >
+        <h1>Cotizaciones 3D</h1>
+        <button
+          onClick={onLogout}
+          style={{
+            backgroundColor: "#dc3545",
+            color: "#fff",
+            border: "none",
+            padding: "6px 12px",
+            borderRadius: 4,
+            cursor: "pointer",
+          }}
+        >
+          Cerrar sesión
+        </button>
+      </div>
 
       {/* —————————————————————————————————————————————————————
-          BOTÓN “Nueva Cotización”: muestra el formulario vacío
+          BOTÓN “Nueva Cotización”: aparece solo si no estamos en modo formulario
          ————————————————————————————————————————————————————— */}
       {!showForm && (
         <button
@@ -224,7 +266,7 @@ const QuotePage: React.FC = () => {
                 alignItems: "center",
               }}
             >
-              {/* Aquí muestras de forma resumida la cotización. Ajusta según convenga */}
+              {/* Muestra resumen de la cotización */}
               <div>
                 <strong>{q.quote_name}</strong> — Impresora: {q.printer.name} — Filamento:{" "}
                 {q.filament.name} — Infill: {q.model.infill}%
@@ -267,11 +309,8 @@ const QuotePage: React.FC = () => {
          ————————————————————————————————————————————————————— */}
       {showForm && (
         <QuoteForm
-          // Si editingData existe, pasamos { ...editingData } como initialData
-          initialData={ editingData || undefined }
+          initialData={editingData || undefined}
           onSubmit={(payload) => {
-            // Si editingId está presente, estamos en modo edición → PUT
-            // Sino, estamos en modo creación → POST
             editingId ? handleUpdate(payload) : handleCreate(payload);
           }}
           onCancel={handleCancel}
