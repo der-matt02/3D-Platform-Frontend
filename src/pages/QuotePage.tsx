@@ -1,3 +1,5 @@
+// src/pages/QuotePage.tsx
+
 import React, { useState, useEffect } from "react";
 import QuoteForm from "../components/QuoteForm";
 import type { QuoteCreateSchema, QuoteUpdateSchema } from "../types/schema";
@@ -14,15 +16,13 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
   const [quotes, setQuotes] = useState<any[]>([]);
 
   // 2) Estados para edición: payload (sin id) y el id por separado
-  const [editingData, setEditingData] = useState<QuoteUpdateSchema | null>(null);
+  const [editingData, setEditingData] = useState<QuoteUpdateSchema & { summary?: any } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // 3) Controla si mostramos el formulario o la lista
   const [showForm, setShowForm] = useState(false);
 
-  // ——————————————————————————————————————————————————————————————————
-  // fetchQuotes: obtiene todas las cotizaciones con GET /api/quotes/
-  // ——————————————————————————————————————————————————————————————————
+  // — fetchQuotes: obtiene todas las cotizaciones con GET /api/quotes/ —
   const fetchQuotes = async () => {
     try {
       const res = await fetch(API_URL, {
@@ -54,9 +54,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ——————————————————————————————————————————————————————————————————
-  // handleCreate: crea una nueva cotización (POST)
-  // ——————————————————————————————————————————————————————————————————
+  // — handleCreate: crea una nueva cotización (POST) —
   const handleCreate = async (payload: QuoteCreateSchema) => {
     try {
       const res = await fetch(API_URL, {
@@ -71,18 +69,72 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
         const textErr = await res.text();
         throw new Error(`Error ${res.status}: ${textErr}`);
       }
-      // Si creó correctamente, recargamos la lista y ocultamos el formulario
+
+      // Extraemos la respuesta completa (QuoteOutSchema)
+      const createdQuote = await res.json();
+      const newId = createdQuote._id;
+
+      // Construimos payload con los mismos campos y agregamos `summary`
+      const updatePayload: QuoteUpdateSchema & { summary: typeof createdQuote.summary } = {
+        quote_name: createdQuote.quote_name,
+        printer: {
+          name: createdQuote.printer.name,
+          watts: createdQuote.printer.watts,
+          type: createdQuote.printer.type,
+          speed: createdQuote.printer.speed,
+          nozzle: createdQuote.printer.nozzle,
+          layer: createdQuote.printer.layer,
+          bed_temperature: createdQuote.printer.bed_temperature,
+          hotend_temperature: createdQuote.printer.hotend_temperature,
+          hourly_cost: createdQuote.printer.hourly_cost,
+        },
+        filament: {
+          name: createdQuote.filament.name,
+          type: createdQuote.filament.type,
+          diameter: createdQuote.filament.diameter,
+          price_per_kg: createdQuote.filament.price_per_kg,
+          color: createdQuote.filament.color,
+          total_weight: createdQuote.filament.total_weight,
+        },
+        energy: { kwh_cost: createdQuote.energy.kwh_cost },
+        model: {
+          model_weight: createdQuote.model.model_weight,
+          print_time: createdQuote.model.print_time,
+          infill: createdQuote.model.infill,
+          supports: createdQuote.model.supports,
+          support_type: createdQuote.model.support_type,
+          support_weight: createdQuote.model.support_weight,
+          layer_height: createdQuote.model.layer_height,
+        },
+        commercial: {
+          labor: createdQuote.commercial.labor,
+          post_processing: createdQuote.commercial.post_processing,
+          margin: createdQuote.commercial.margin,
+          taxes: createdQuote.commercial.taxes,
+        },
+        summary: {
+          grams_used: createdQuote.summary.grams_used,
+          grams_wasted: createdQuote.summary.grams_wasted,
+          waste_percentage: createdQuote.summary.waste_percentage,
+          estimated_total_cost: createdQuote.summary.estimated_total_cost,
+          suggestions: createdQuote.summary.suggestions,
+        },
+      };
+
+      // Dejamos el formulario abierto con el summary recién creado
+      setEditingId(newId);
+      setEditingData(updatePayload);
+      setShowForm(true);
+
+      // Recargamos la lista para incluir la nueva cotización
       await fetchQuotes();
-      setShowForm(false);
     } catch (err) {
       console.error("Error al crear cotización:", err);
       alert("No se pudo crear la cotización.");
     }
   };
 
-  // ——————————————————————————————————————————————————————————————————
-  // handleUpdate: actualiza una cotización existente (PUT)
-  // ——————————————————————————————————————————————————————————————————
+  // — handleUpdate: actualiza una cotización existente (PUT) —
   const handleUpdate = async (payload: QuoteCreateSchema) => {
     if (!editingId) {
       console.error("Falta el ID para actualizar.");
@@ -112,9 +164,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
     }
   };
 
-  // ——————————————————————————————————————————————————————————————————
-  // handleDelete: elimina una cotización (DELETE)
-  // ——————————————————————————————————————————————————————————————————
+  // — handleDelete: elimina una cotización (DELETE) —
   const handleDelete = async (id: string) => {
     if (!window.confirm("¿Seguro que deseas eliminar esta cotización?")) return;
     try {
@@ -136,21 +186,17 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
     }
   };
 
-  // ——————————————————————————————————————————————————————————————————
-  // handleCancel: cancela la creación/edición y oculta el formulario
-  // ——————————————————————————————————————————————————————————————————
+  // — handleCancel: cancela la creación/edición y oculta el formulario —
   const handleCancel = () => {
     setEditingData(null);
     setEditingId(null);
     setShowForm(false);
   };
 
-  // ——————————————————————————————————————————————————————————————————
-  // handleEditClick: al hacer clic en “Editar” para una cotización `q`
-  // ——————————————————————————————————————————————————————————————————
+  // — handleEditClick: al hacer clic en “Editar” para una cotización `q` —
   const handleEditClick = (q: any) => {
-    // q tiene al menos: q._id, q.quote_name, q.printer, q.filament, q.energy, q.model, q.commercial
-    const updatePayload: QuoteUpdateSchema = {
+    // Construimos el payload con todos los campos y agregamos `summary`
+    const updatePayload: QuoteUpdateSchema & { summary: typeof q.summary } = {
       quote_name: q.quote_name,
       printer: {
         name: q.printer.name,
@@ -187,10 +233,17 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
         margin: q.commercial.margin,
         taxes: q.commercial.taxes,
       },
+      summary: {
+        grams_used: q.summary.grams_used,
+        grams_wasted: q.summary.grams_wasted,
+        waste_percentage: q.summary.waste_percentage,
+        estimated_total_cost: q.summary.estimated_total_cost,
+        suggestions: q.summary.suggestions,
+      },
     };
 
     // Guardamos en el state el ID y el payload para edición
-    setEditingId(q._id);
+    setEditingId(q.id);
     setEditingData(updatePayload);
     setShowForm(true);
   };
@@ -222,9 +275,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
         </button>
       </div>
 
-      {/* —————————————————————————————————————————————————————
-          BOTÓN “Nueva Cotización”: aparece solo si no estamos en modo formulario
-         ————————————————————————————————————————————————————— */}
+      {/* BOTÓN “Nueva Cotización”: aparece solo si no estamos en modo formulario */}
       {!showForm && (
         <button
           onClick={() => {
@@ -246,9 +297,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
         </button>
       )}
 
-      {/* —————————————————————————————————————————————————————
-          LISTA DE COTIZACIONES (solo si showForm === false)
-         ————————————————————————————————————————————————————— */}
+      {/* LISTA DE COTIZACIONES (solo si showForm === false) */}
       {!showForm && (
         <ul style={{ padding: 0, listStyle: "none" }}>
           {quotes.map((q) => (
@@ -302,9 +351,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
         </ul>
       )}
 
-      {/* —————————————————————————————————————————————————————
-          FORMULARIO (solo si showForm === true)
-         ————————————————————————————————————————————————————— */}
+      {/* FORMULARIO (solo si showForm === true) */}
       {showForm && (
         <QuoteForm
           initialData={editingData || undefined}
