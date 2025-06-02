@@ -1,4 +1,3 @@
-// src/api/quoteApi.ts
 import type { Quote } from "../types/quote";
 
 const API_URL = "http://localhost:8000/api/quotes/";
@@ -57,5 +56,4 @@ export async function deleteQuote(id: string): Promise<void> {
     } catch {}
     throw new Error(`Error ${res.status}: ${res.statusText} ${detalle}`);
   }
-  // 204 No Content
 }

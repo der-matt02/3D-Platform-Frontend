@@ -1,5 +1,3 @@
-// src/pages/QuotePage.tsx
-
 import React, { useState, useEffect } from "react";
 import QuoteForm from "../components/QuoteForm";
 import type { QuoteCreateSchema, QuoteUpdateSchema } from "../types/schema";

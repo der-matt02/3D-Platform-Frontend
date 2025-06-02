@@ -1,4 +1,3 @@
-// src/components/QuoteCard.tsx
 import React from "react";
 import type { Quote } from "../types/quote";
 

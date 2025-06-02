@@ -1,10 +1,7 @@
-// src/components/QuoteForm.tsx
 import React, { useEffect, useState } from "react";
 import type { QuoteCreateSchema, QuoteUpdateSchema } from "../types/schema";
 
-// —————————————————————————————————————————————————————————————————————————————
 // DEFINICIÓN DE LISTAS DE OPCIONES (deben coincidir con los enums del backend)
-// —————————————————————————————————————————————————————————————————————————————
 
 // PrinterType (coincidir con models.enums.printer_enums.PrinterType en FastAPI)
 const PRINTER_TYPES = ["FDM", "SLA", "SLS", "DLP", "MSLA"] as const;
@@ -23,7 +20,6 @@ const FILAMENT_TYPES = ["PLA", "ABS", "PETG", "TPU", "Nylon", "HIPS", "PC", "ASA
 type FilamentType = typeof FILAMENT_TYPES[number];
 
 // FilamentDiameter (coincidir con models.enums.filament_enums.FilamentDiameter)
-// Usamos cadenas para mapear 1.75, 2.85, 3.0 si el backend así lo maneja.
 const FILAMENT_DIAMETERS = ["1.75", "2.85", "3.0"] as const;
 type FilamentDiameter = typeof FILAMENT_DIAMETERS[number];
 
@@ -35,31 +31,21 @@ const FILAMENT_COLORS = [
 ] as const;
 type FilamentColor = typeof FILAMENT_COLORS[number];
 
-// Para “Commercial” no hay enum, son valores numéricos.
-// Tampoco controles especiales para “Energy”.
-
-// —————————————————————————————————————————————————————————————————————————————
 // PROPS del componente
-// —————————————————————————————————————————————————————————————————————————————
 interface QuoteFormProps {
   initialData?: QuoteUpdateSchema;   // si estamos editando, llega con los campos a editar
   onSubmit: (data: QuoteCreateSchema) => void;  // callback para crear/actualizar
   onCancel: () => void;  // cancelar edición
 }
 
-// —————————————————————————————————————————————————————————————————————————————
+
 // COMPONENTE
-// —————————————————————————————————————————————————————————————————————————————
 const QuoteForm: React.FC<QuoteFormProps> = ({
   initialData,
   onSubmit,
   onCancel,
 }) => {
-  // ————————————————————————————————————————————————————————————————————————
-  // 1) ESTADOS PARA LOS VALORES DEL FORMULARIO
-  //    Inicializamos con '' o 0, o con “initialData” si estamos editando.
-  //    Note que “initialData” viene con los mismos campos que QuoteCreateSchema.
-  // ————————————————————————————————————————————————————————————————————————
+  
 
   const [quoteName, setQuoteName] = useState<string>(initialData?.quote_name || "");
 
@@ -100,19 +86,14 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
   const [commercialMargin, setCommercialMargin] = useState<number>(initialData?.commercial.margin || 0);
   const [commercialTaxes, setCommercialTaxes] = useState<number>(initialData?.commercial.taxes || 0);
 
-  // ————————————————————————————————————————————————————————————————————————
-  // 2) ESTADO PARA MENSAJES DE ERROR (uno por cada campo).  
-  //    Usamos un objeto cuya clave es el nombre del campo y valor es la cadena de error.
-  // ————————————————————————————————————————————————————————————————————————
-  const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
+  // Usamos un objeto cuya clave es el nombre del campo y valor es la cadena de error.
+    const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
 
   // Helper para determinar si hay al menos un error activo:
   const hasErrors = Object.values(errors).some((msg) => msg && msg.length > 0);
 
-  // ————————————————————————————————————————————————————————————————————————
   // 3) FUNCIONES DE VALIDACIÓN POR CAMPO (devuelven "" si todo OK, o mensaje si no)
-  // ————————————————————————————————————————————————————————————————————————
-  const validateQuoteName = (value: string): string => {
+    const validateQuoteName = (value: string): string => {
     const txt = value.trim();
     if (txt === "") return "El nombre de cotización es requerido";
     if (txt.length < 3) return "Mínimo 3 caracteres";
@@ -250,10 +231,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
     return "";
   };
 
-  // ————————————————————————————————————————————————————————————————————————
   // 4) USE EFFECTS para ejecutar validación en tiempo real cada vez que cambie un campo
-  // ————————————————————————————————————————————————————————————————————————
-  // Al cambiar “quoteName”
   useEffect(() => {
     setErrors(prev => ({
       ...prev,
@@ -349,9 +327,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
     }));
   }, [commercialLabor, commercialPostProcessing, commercialMargin, commercialTaxes]);
 
-  // ————————————————————————————————————————————————————————————————————————
   // 5) MANEJADORES de “onChange” para cada input/select/checkbox
-  // ————————————————————————————————————————————————————————————————————————
   // A cada campo le asignamos su propio “onChange” que actualiza el estado correspondiente
 
   // — Quote Name —
@@ -461,9 +437,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
     setCommercialTaxes(Number(e.target.value));
   };
 
-  // ————————————————————————————————————————————————————————————————————————
   // 6) MANEJO DE ENVÍO DEL FORMULARIO (VALIDACIÓN GLOBAL + onSubmit)
-  // ————————————————————————————————————————————————————————————————————————
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -563,7 +537,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
     onSubmit(payload);
 
     // 6.5) Si estamos en modo “editar”, el onSubmit de QuotePage se encargará de resetear
-    //       initialData / cerrar el formulario. Si es modo “crear”, limpiamos manualmente:
+    // initialData / cerrar el formulario. Si es modo “crear”, limpiamos manualmente:
     if (!initialData) {
       setQuoteName("");
       setPrinterName("");
@@ -602,9 +576,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
     }
   };
 
-  // ————————————————————————————————————————————————————————————————————————
   // 7) JSX DEL FORMULARIO (se muestra todo en un solo formulario)
-  // ————————————————————————————————————————————————————————————————————————
   return (
     <form
       onSubmit={handleSubmit}
