@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import type { QuoteCreateSchema, QuoteUpdateSchema } from "../types/schema";
+import OptimizationPanel from "./OptimizationPanel";
 
 // DEFINICIÓN DE LISTAS DE OPCIONES (deben coincidir con los enums del backend)
 const PRINTER_TYPES = ["FDM", "SLA", "SLS", "DLP", "MSLA"] as const;
@@ -27,7 +28,7 @@ const FILAMENT_COLORS = [
 type FilamentColor = typeof FILAMENT_COLORS[number];
 
 interface QuoteFormProps {
-  initialData?: QuoteUpdateSchema & {
+  initialData?: (QuoteUpdateSchema & {
     summary?: {
       grams_used: number;
       grams_wasted: number;
@@ -35,15 +36,22 @@ interface QuoteFormProps {
       estimated_total_cost: number;
       suggestions: string[];
     };
+  }) & {
+    id?: string; // <--- agregamos aquí el id
   };
   onSubmit: (data: QuoteCreateSchema) => void;
   onCancel: () => void;
+  onQuoteReload: () => void;
+  quoteVersion?: number;
 }
+
 
 const QuoteForm: React.FC<QuoteFormProps> = ({
   initialData,
   onSubmit,
   onCancel,
+  onQuoteReload,
+  quoteVersion,
 }) => {
   // — Quote Name —
   const [quoteName, setQuoteName] = useState<string>(initialData?.quote_name || "");
@@ -1334,6 +1342,17 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
             </p>
           </div>
         )}
+         {/* — Si estamos editando (initialData.id existe), mostramos el panel de optimización — */}
+         {initialData?.id && (
+           <div style={{ marginTop: "24px" }}>
+             <OptimizationPanel
+               quoteId={initialData.id}
+               //onQuoteUpdated={onCancel}
+               onQuoteUpdated={onQuoteReload}
+               quoteVersion={quoteVersion}
+             />
+           </div>
+         )}
 
         {/* —————————— BOTONES: Enviar y Cancelar —————————— */}
         <div style={{ marginTop: 12, textAlign: "right" }}>

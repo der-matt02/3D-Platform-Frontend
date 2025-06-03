@@ -19,6 +19,72 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
   const [editingData, setEditingData] = useState<QuoteUpdateSchema & { summary?: any } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const reloadCurrentQuote = async () => {
+  if (!editingId) return;
+  try {
+    const res = await fetch(`${API_URL}${editingId}`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const q = await res.json();
+
+    const payload: QuoteUpdateSchema & { summary: typeof q.summary } = {
+      quote_name: q.quote_name,
+      printer: {
+        name: q.printer.name,
+        watts: q.printer.watts,
+        type: q.printer.type,
+        speed: q.printer.speed,
+        nozzle: q.printer.nozzle,
+        layer: q.printer.layer,
+        bed_temperature: q.printer.bed_temperature,
+        hotend_temperature: q.printer.hotend_temperature,
+        hourly_cost: q.printer.hourly_cost,
+      },
+      filament: {
+        name: q.filament.name,
+        type: q.filament.type,
+        diameter: q.filament.diameter,
+        price_per_kg: q.filament.price_per_kg,
+        color: q.filament.color,
+        total_weight: q.filament.total_weight,
+      },
+      energy: {
+        kwh_cost: q.energy.kwh_cost,
+      },
+      model: {
+        model_weight: q.model.model_weight,
+        print_time: q.model.print_time,
+        infill: q.model.infill,
+        supports: q.model.supports,
+        support_type: q.model.support_type,
+        support_weight: q.model.support_weight,
+        layer_height: q.model.layer_height,
+      },
+      commercial: {
+        labor: q.commercial.labor,
+        post_processing: q.commercial.post_processing,
+        margin: q.commercial.margin,
+        taxes: q.commercial.taxes,
+      },
+      summary: {
+        grams_used: q.summary.grams_used,
+        grams_wasted: q.summary.grams_wasted,
+        waste_percentage: q.summary.waste_percentage,
+        estimated_total_cost: q.summary.estimated_total_cost,
+        suggestions: q.summary.suggestions,
+      },
+    };
+
+    setEditingData(payload);
+  } catch (err) {
+    console.error("Error al recargar cotización:", err);
+  }
+};
+
   // 3) Controla si mostramos el formulario o la lista
   const [showForm, setShowForm] = useState(false);
 
@@ -135,34 +201,50 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
   };
 
   // — handleUpdate: actualiza una cotización existente (PUT) —
-  const handleUpdate = async (payload: QuoteCreateSchema) => {
-    if (!editingId) {
-      console.error("Falta el ID para actualizar.");
-      return;
+const handleUpdate = async (payload: QuoteCreateSchema) => {
+  if (!editingId) {
+    console.error("Falta el ID para actualizar.");
+    return;
+  }
+  try {
+    const res = await fetch(`${API_URL}${editingId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const textErr = await res.text();
+      throw new Error(`Error ${res.status}: ${textErr}`);
     }
-    try {
-      const res = await fetch(`${API_URL}${editingId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const textErr = await res.text();
-        throw new Error(`Error ${res.status}: ${textErr}`);
-      }
-      // Si actualizó correctamente, recargamos la lista y resetemos edición
-      await fetchQuotes();
-      setEditingData(null);
-      setEditingId(null);
-      setShowForm(false);
-    } catch (err) {
-      console.error("Error al actualizar cotización:", err);
-      alert("No se pudo actualizar la cotización.");
-    }
-  };
+
+    // 1) Leemos el objeto que devuelve el backend, incluyendo el summary actualizado
+    const updatedQuote = await res.json();
+    // 2) Reconstruimos el “initialData” que necesita el formulario, sustituyendo summary
+    const newInitialData: QuoteUpdateSchema & { summary: typeof updatedQuote.summary } = {
+      ...payload,
+      summary: updatedQuote.summary,
+      // Si tu esquema de edición espera campos adicionales como id o created_at, agrégalos aquí:
+      // id: editingId!,
+      // created_at: updatedQuote.created_at,
+    };
+    // 3) Actualizamos editingData para que QuoteForm reciba el summary nuevo
+    setEditingData(newInitialData);
+
+    // 4) Refrescar la lista en el listado general
+    await fetchQuotes();
+    reloadCurrentQuote();
+    // 5) Dejamos el formulario abierto (setShowForm(true)) para que el usuario
+    //    vea el resumen recién calculado. Mantén editingId igual para no cerrar el form.
+    setShowForm(true);
+  } catch (err) {
+    console.error("Error al actualizar cotización:", err);
+    alert("No se pudo actualizar la cotización.");
+  }
+};
+
 
   // — handleDelete: elimina una cotización (DELETE) —
   const handleDelete = async (id: string) => {
@@ -354,11 +436,17 @@ const QuotePage: React.FC<QuotePageProps> = ({ token, onLogout }) => {
       {/* FORMULARIO (solo si showForm === true) */}
       {showForm && (
         <QuoteForm
-          initialData={editingData || undefined}
+          initialData={
+            editingData
+              ? { ...editingData, id: editingId! }
+              : undefined
+          }
           onSubmit={(payload) => {
             editingId ? handleUpdate(payload) : handleCreate(payload);
           }}
           onCancel={handleCancel}
+          onQuoteReload={reloadCurrentQuote}
+          quoteVersion={editingData ? editingData.summary.estimated_total_cost : undefined}
         />
       )}
     </div>
